@@ -808,7 +808,7 @@ async def process_buffer_impl(bridge: Any, user_id: str, buf: Any) -> None:
                 sticker_infos=sticker_infos,
                 video_infos=video_infos or None,
                 casual_multipart=not task_mode,
-                memory_text=bridge._read_memory(),
+                memory_text=bridge._read_memory(user_id),
                 image_suggestions=image_suggestions,
                 cfg=bridge.cfg,
                 include_intro=False,  # 人设走 system instructions
@@ -867,7 +867,7 @@ async def process_buffer_impl(bridge: Any, user_id: str, buf: Any) -> None:
                         sticker_infos=sticker_infos,
                         video_infos=video_infos or None,
                         casual_multipart=not task_mode,
-                        memory_text=bridge._read_memory(),
+                        memory_text=bridge._read_memory(user_id),
                         cfg=bridge.cfg,
                         include_intro=False,
                     )

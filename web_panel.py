@@ -1502,9 +1502,21 @@ class WebPanel:
 
         # ---- 聊天 / 命令 ----
 
+        def _chat_identity(session_id: str) -> str:
+            """决定网页聊天用哪个身份。
+
+            以前一律加 `web-` 前缀，于是网页里设的提醒归到 `web-123` 名下，
+            而面板按 QQ 作用域查列表，自然一条都看不到。
+            会话名是纯数字（也就是 QQ 号）时直接用该号，与 QQ 侧共享数据。
+            """
+            text = str(session_id or "").strip()
+            if text.isdigit():
+                return text
+            return f"web-{text}" if text else "web-main"
+
         @app.post("/api/chat", dependencies=[Depends(self._require_auth)])
         async def api_chat(body: ChatIn) -> dict[str, Any]:
-            web_user_id = f"web-{body.session_id}"
+            web_user_id = _chat_identity(body.session_id)
             replies = await bridge.process_web_message(web_user_id, body.text)
             self._invalidate_scopes()
             return {"scope": web_user_id, "replies": replies}
@@ -1512,7 +1524,7 @@ class WebPanel:
         # 命令与聊天走同一个入口，让 Web 和 QQ 行为完全一致。
         @app.post("/api/command", dependencies=[Depends(self._require_auth)])
         async def api_command(body: ChatIn) -> dict[str, Any]:
-            web_user_id = f"web-{body.session_id}"
+            web_user_id = _chat_identity(body.session_id)
             replies = await bridge.process_web_message(web_user_id, body.text)
             self._invalidate_scopes()
             return {"scope": web_user_id, "replies": replies}

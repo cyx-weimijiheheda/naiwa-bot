@@ -14,6 +14,7 @@ data/
 *.log
 sessions.json
 memory.md
+memory-*.md
 proactive-notes.md
 timetable.json
 channels/from_qq/*

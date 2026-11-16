@@ -356,7 +356,9 @@ def test_roleplay_rotation_writes_memory_and_resets_thread():
             await bridge._maybe_rotate_persona("10001")
             os.environ.pop("FAKE_AGENT_REPLY", None)
             assert store.get_persona_thread("10001") is None
-            assert "主人喜欢在晚上看书" in bridge.memory_path.read_text(encoding="utf-8")
+            # 记忆按用户分文件存放，这里断言该用户自己的那份
+            user_memory = bridge._memory_path_for("10001")
+            assert "主人喜欢在晚上看书" in user_memory.read_text(encoding="utf-8")
 
     asyncio.run(scenario())
 
@@ -1245,7 +1247,8 @@ def test_roleplay_rotation_due_when_started_ts_missing():
             await bridge._maybe_rotate_persona("10001")
             os.environ.pop("FAKE_AGENT_REPLY", None)
             assert store.get_persona_thread("10001") is None
-            assert "旧会话内容已保留" in bridge.memory_path.read_text(encoding="utf-8")
+            user_memory = bridge._memory_path_for("10001")
+            assert "旧会话内容已保留" in user_memory.read_text(encoding="utf-8")
 
     asyncio.run(scenario())
 

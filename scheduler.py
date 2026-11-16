@@ -16,9 +16,16 @@ _WEEKLY_RE = re.compile(
     r"(\d{1,2})\s*[点时:：](?:\s*(\d{1,2}))?"
 )
 _ONCE_RE = re.compile(
-    r"(?:明天|明早|明天早上|明天上午|明天下午|明天晚上|明晚|"
-    r"今天|今晚|今天早上|今天上午|今天下午|今天晚上)\s*"
+    r"(?:大后天|后天|明天|明早|明天早上|明天上午|明天下午|明天晚上|明晚|"
+    r"今天|今晚|今天早上|今天上午|今天下午|今天晚上|"
+    r"(?:下)?周[一二三四五六日天]|(?:下)?星期[一二三四五六日天])\s*"
+    r"(?:早上|上午|中午|下午|晚上)?\s*"
     r"(\d{1,2})\s*[点时:：]\s*(\d{1,2})?\s*分?"
+)
+# 没有「今天/明天」前缀的裸时段，例如「晚上8点」「下午3点」——
+# 默认按最近的一次未来时间算。
+_TIME_ONLY_RE = re.compile(
+    r"(?:早上|上午|中午|下午|晚上|傍晚|凌晨)\s*(\d{1,2})\s*[点时:：]\s*(\d{1,2})?\s*分?"
 )
 _MINUTES_RE = re.compile(r"(\d+)\s*分钟\s*后")
 
@@ -26,7 +33,7 @@ _WEEK_CN = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6
 
 
 def _parse_time(when_text: str) -> tuple[int, int]:
-    for pattern in (_DAILY_RE, _WEEKLY_RE, _ONCE_RE):
+    for pattern in (_DAILY_RE, _WEEKLY_RE, _ONCE_RE, _TIME_ONLY_RE):
         m = pattern.search(when_text)
         if m:
             groups = m.groups()
@@ -35,6 +42,15 @@ def _parse_time(when_text: str) -> tuple[int, int]:
                 hour = numbers[0]
                 minute = numbers[1] if len(numbers) >= 2 else 0
                 if 0 <= hour <= 23 and 0 <= minute <= 59:
+                    # 12 小时制换算：下午/晚上 +12，中午 12 点保持 12
+                    text = m.group(0)
+                    if ("下午" in text or "晚上" in text or "傍晚" in text
+                            or "今晚" in text or "明晚" in text) and hour < 12:
+                        hour += 12
+                    elif "中午" in text and hour < 11:
+                        hour += 12
+                    elif "凌晨" in text and hour == 12:
+                        hour = 0
                     return hour, minute
     return 9, 0
 
@@ -44,6 +60,7 @@ def parse_remind_when(text: str) -> tuple[str, str]:
         (_DAILY_RE, "daily"),
         (_WEEKLY_RE, "weekly"),
         (_ONCE_RE, "none"),
+        (_TIME_ONLY_RE, "none"),
         (_MINUTES_RE, "none"),
     ):
         m = pattern.search(text)
@@ -58,6 +75,15 @@ def next_run_from_text(when_text: str, now: datetime) -> datetime:
         if m:
             return now + timedelta(minutes=int(m.group(1)))
     hour, minute = _parse_time(when_text)
+    if "大后天" in when_text:
+        base = now + timedelta(days=3)
+    elif "后天" in when_text:
+        base = now + timedelta(days=2)
+    else:
+        base = None
+    if base is not None:
+        candidate = base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        return candidate
     if when_text.startswith(("每天", "每日")):
         candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
         if candidate <= now:
@@ -74,8 +100,26 @@ def next_run_from_text(when_text: str, now: datetime) -> datetime:
                 hour=hour, minute=minute, second=0, microsecond=0
             )
             return candidate
+    # 单次提醒里的「周X / 下周X」：算出最近的那个星期几
+    weekday_match = re.search(r"(下)?(?:周|星期)([一二三四五六日天])", when_text)
+    if weekday_match and "每" not in when_text:
+        is_next_week = bool(weekday_match.group(1))
+        target = _WEEK_CN[weekday_match.group(2)]
+        days_ahead = (target - now.weekday() + 7) % 7
+        if is_next_week:
+            days_ahead = days_ahead + 7 if days_ahead > 0 else 7
+        elif days_ahead == 0 and (now.hour, now.minute) >= (hour, minute):
+            days_ahead = 7
+        return (now + timedelta(days=days_ahead)).replace(
+            hour=hour, minute=minute, second=0, microsecond=0
+        )
     if "明天" in when_text or "明早" in when_text or "明晚" in when_text:
         return (now + timedelta(days=1)).replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if _TIME_ONLY_RE.fullmatch(when_text.strip()):
+        candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if candidate <= now:
+            candidate += timedelta(days=1)
+        return candidate
     if "今天" in when_text or "今晚" in when_text:
         candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
         if candidate <= now:

@@ -663,20 +663,48 @@ class Bridge:
             logging.exception("读取 notes 文件失败")
             return ""
 
-    def _read_memory(self) -> str:
+    def _memory_path_for(self, user_id: str = "") -> Path:
+        """按用户分文件存放长期记忆。
+
+        以前所有人共用 memory.md，于是 A 的身份、考试、偏好会被注入到 B 的
+        对话里 —— 会话历史虽然是隔离的，长期记忆却混在一起。
+        现在每个 QQ 号一个文件；没传 user_id 时沿用旧文件，兼容既有数据。
+        """
+        key = str(user_id or "").strip()
+        if not key:
+            return self.memory_path
+        safe = "".join(ch for ch in key if ch.isalnum() or ch in "-_")
+        if not safe:
+            return self.memory_path
+        return self.memory_path.with_name(f"memory-{safe}.md")
+
+    def _read_memory(self, user_id: str = "") -> str:
+        """读长期记忆。
+
+        优先读该用户自己的文件；没有就退回旧的共享 memory.md ——
+        迁移期用户还没生成自己的文件时，不至于突然丢掉全部记忆。
+        """
         try:
-            if not self.memory_path.exists():
-                return ""
-            return self.memory_path.read_text(encoding="utf-8", errors="replace")[:8000].strip()
+            candidates = [self._memory_path_for(user_id)]
+            if candidates[0] != self.memory_path:
+                candidates.append(self.memory_path)
+            for path in candidates:
+                if path.exists():
+                    text = path.read_text(encoding="utf-8", errors="replace")[:8000].strip()
+                    if text:
+                        return text
+            return ""
         except Exception:
             logging.exception("读取记忆文件失败")
             return ""
 
-    async def _write_memory(self, text: str) -> None:
+    async def _write_memory(self, text: str, user_id: str = "") -> None:
         text = text.strip()
         if not text:
             return
-        await asyncio.to_thread(self.memory_path.write_text, text + "\n", encoding="utf-8")
+        path = self._memory_path_for(user_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(path.write_text, text + "\n", encoding="utf-8")
 
     async def _maybe_rotate_persona(self, user_id: str) -> None:
         if not self.cfg.get("persona_enabled", True):
@@ -716,7 +744,7 @@ class Bridge:
                 thread_id,
                 resolve_policy(self.cfg, "summary"),
             )
-            await self._write_memory(reply)
+            await self._write_memory(reply, user_id)
         except Exception:
             logging.exception("整理角色扮演记忆失败，仍继续轮换（保留旧记忆文件）")
         self.store.reset_persona(user_id)
