@@ -462,6 +462,13 @@ class StateDB:
 
     # ---- knowledge base ----
 
+    def document_content(self, path: str) -> str:
+        """读取一个已索引块的正文；path 是索引标识，不是任意文件路径。"""
+        rows = self._query(
+            "SELECT content FROM knowledge_fts WHERE path = ? LIMIT 1", (path,)
+        )
+        return str(rows[0]["content"]) if rows else ""
+
     def add_document(
         self,
         path: str,

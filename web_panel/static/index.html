@@ -1367,7 +1367,7 @@ function ctxSection(title, sub) {
 function ctxGroupHeader(group) {
   const div = ctxSection(
     "群 " + group.group_id,
-    group.members.filter((item) => !item.shared).length + " 个成员 · " + group.contexts + " 个有上下文"
+    "全群共享上下文 · " + group.contexts + " 个会话"
   );
   const btn = document.createElement("button");
   btn.className = "btn danger";

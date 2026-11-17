@@ -20,11 +20,29 @@ def _chunk_text(text: str, size: int = _CHUNK_SIZE, overlap: int = _CHUNK_OVERLA
     text = text.strip()
     if not text:
         return []
+    if size <= 0 or overlap < 0 or overlap >= size:
+        raise ValueError("分块大小必须大于零，重叠必须在 0 到分块大小之间")
     chunks: list[str] = []
-    start = 0
-    while start < len(text):
-        chunks.append(text[start : start + size])
-        start += max(1, size - overlap)
+    current = ""
+    # 优先保留完整段落，避免把梗的出处与解释切成残句。
+    for paragraph in text.split("\n\n"):
+        paragraph = paragraph.strip()
+        if not paragraph:
+            continue
+        if current and len(current) + len(paragraph) + 2 > size:
+            chunks.append(current)
+            current = ""
+        if len(paragraph) > size:
+            start = 0
+            while start < len(paragraph):
+                chunks.append(paragraph[start : start + size])
+                if start + size >= len(paragraph):
+                    break
+                start += size - overlap
+        else:
+            current = f"{current}\n\n{paragraph}" if current else paragraph
+    if current:
+        chunks.append(current)
     return chunks
 
 
@@ -73,7 +91,9 @@ def search_knowledge(db: StateDB, query: str, limit: int = 5) -> str:
         return "（本地知识库没有找到相关内容）"
     parts = []
     for hit in hits:
-        parts.append(f"【{hit['title']}】\n{hit.get('snippet') or ''}")
+        # 摘要只适合预览；详细出处、人物关系需要把命中块交给模型。
+        content = db.document_content(hit["path"]) or hit.get("snippet") or ""
+        parts.append(f"【{hit['title']}】\n{content}")
     return "\n\n".join(parts)
 
 

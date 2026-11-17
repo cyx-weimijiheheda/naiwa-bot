@@ -422,22 +422,23 @@ def test_remote_client_always_requires_token(tmp_path):
 # ── 上下文管理 ───────────────────────────────────────
 
 
-def test_contexts_lists_group_members_and_clears(tmp_path):
+def test_contexts_lists_shared_group_and_clears(tmp_path):
     panel, bridge = make_panel(tmp_path)
     bridge.state_db.touch_group_member("429949232", "10001", "小明")
-    bridge.store.set_persona_thread("g:429949232:10001", "thread-g-1")
-    bridge.store.increment_persona_turns("g:429949232:10001")
+    bridge.store.set_persona_thread("g:429949232", "thread-g-1")
+    bridge.store.increment_persona_turns("g:429949232")
     bridge.store.set_persona_thread("10001", "thread-p-1")
     client = TestClient(panel.app)
 
     data = client.get("/api/contexts", headers=authed(None)).json()
     group = next(item for item in data["groups"] if item["group_id"] == "429949232")
     member = next(
-        item for item in group["members"] if item["key"] == "g:429949232:10001"
+        item for item in group["members"] if item["key"] == "g:429949232"
     )
     assert member["has_context"] is True
     assert member["turns"] == 1
-    assert member["nickname"] == "小明"
+    assert member["shared"] is True
+    assert len(group["members"]) == 1
     assert any(item["key"] == "10001" for item in data["private"])
 
     r = client.post(
@@ -472,7 +473,7 @@ def test_clear_group_clears_every_member_and_legacy_key(tmp_path):
     for user_id in ("10001", "10002"):
         bridge.state_db.touch_group_member("g1", user_id)
         bridge.store.set_persona_thread(f"g:g1:{user_id}", f"t-{user_id}")
-    # 旧版整群共享键也应能一起清掉
+    # 活动群共享键与旧版成员线程一起清掉
     bridge.store.set_persona_thread("g:g1", "t-legacy")
     r = TestClient(panel.app).post(
         "/api/contexts/clear_group", json={"group_id": "g1"}, headers=authed(None)

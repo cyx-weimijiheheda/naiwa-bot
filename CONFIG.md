@@ -1,4 +1,4 @@
-# 配置手册
+# 奶娃 Bot 配置手册
 
 全部可配置项及默认值。**[config.example.json](config.example.json) 只保留必填与最常用的几项**，
 其余配置留空时使用内置默认值，按需调整即可。
@@ -202,7 +202,9 @@ PDF 转文字、视频抽帧 + 字幕 + 语音转写。
 
 ## 人格设定
 
-留空为通用助手；填写后按设定的人设回应。
+本仓库的示例配置加载奶娃人格：`persona_name=奶娃`，`persona_prompt_file=prompts/naiwa-chat.md`，`rag_dirs=["knowledge"]`。下表是底层配置加载器的默认值；不使用示例配置且人格留空时才回退普通助手。
+
+`persona_prompt` 非空会覆盖人设文件；跟随仓库人设时设为空。更新人设后重启，更新资料后重建知识库。参考 [README](README.md#自定义人格) 和 [资料来源说明](knowledge/资料编写与来源说明.md)。
 
 | 键 | 默认值 | 说明 |
 | --- | --- | --- |

@@ -25,16 +25,8 @@ def group_key(group_id: Any) -> str:
     return f"{GROUP_PREFIX}{group_id}"
 
 
-def group_member_key(group_id: Any, user_id: Any) -> str:
-    """群内某成员的独立上下文键：`g:<群号>:<QQ号>`。
-
-    群号与 QQ 号都是十进制数字，用 `:` 分隔不会产生歧义。
-    """
-    return f"{GROUP_PREFIX}{group_id}:{user_id}"
-
-
 def parse_group_member_key(key: Any) -> tuple[str, str] | None:
-    """把 `g:<群号>:<QQ号>` 拆成 (群号, QQ号)；不是成员键时返回 None。"""
+    """把 `g:<群号>:<QQ号>` 拆成 (群号, QQ号)；仅用于旧数据识别/清理，不再创建成员会话；不是成员键时返回 None。"""
     text = str(key)
     if not text.startswith(GROUP_PREFIX):
         return None

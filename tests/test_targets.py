@@ -58,8 +58,8 @@ def test_to_id_keeps_non_numeric():
     assert targets.to_id(None) is None
 
 
-def test_group_member_key_round_trip():
-    key = targets.group_member_key("429949232", "3197142392")
+def test_legacy_group_member_key_remains_readable_for_cleanup():
+    key = "g:429949232:3197142392"
     assert key == "g:429949232:3197142392"
     assert targets.parse_group_member_key(key) == ("429949232", "3197142392")
 

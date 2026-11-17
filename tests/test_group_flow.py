@@ -126,21 +126,21 @@ def test_mentioned_group_message_gets_group_reply():
     assert "假的 Codex 回复" in group[0]["message"]
 
 
-def test_group_context_is_per_member():
-    """群聊上下文按成员隔离：写入 g:<群号>:<QQ号>，不再碰整群键。"""
+def test_group_context_is_shared_across_members():
+    """所有成员共用群线程，成员登记不再创建独立上下文。"""
     seen: dict = {}
 
     def inspect(store, bridge):
         seen["keys"] = store.list_keys()
-        seen["thread"] = store.get_persona_thread(f"g:{GROUP_ID}:10001")
-        # 整群键可能因活动记录而存在，但绝不能持有会话线程
-        seen["group_thread"] = store.get_persona_thread(f"g:{GROUP_ID}")
+        seen["thread"] = store.get_persona_thread(f"g:{GROUP_ID}")
+        # 成员资料用于识别发言人，不能生成成员会话。
+        seen["member_thread"] = store.get_persona_thread(f"g:{GROUP_ID}:10001")
         seen["member"] = bridge.state_db.get_group_member(str(GROUP_ID), "10001")
 
     run_flow([_group_event(_mention("你好"))], inspect=inspect)
     assert seen["thread"]
-    assert f"g:{GROUP_ID}:10001" in seen["keys"]
-    assert seen["group_thread"] is None
+    assert f"g:{GROUP_ID}:10001" not in seen["keys"]
+    assert seen["member_thread"] is None
     assert seen["member"] is not None
     assert seen["member"]["nickname"] == "小明"
     assert seen["member"]["message_count"] >= 1

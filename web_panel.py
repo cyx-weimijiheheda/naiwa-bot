@@ -32,7 +32,7 @@ from pydantic import BaseModel
 from calendar_todos import normalize_todo_text
 from config import DEFAULTS, _env_raw
 from scheduler import add_reminder_from_text
-from targets import group_key, group_member_key, parse_group_member_key
+from targets import group_key, parse_group_member_key
 
 _BEARER = HTTPBearer(auto_error=False)
 
@@ -469,33 +469,8 @@ class WebPanel:
                     groups.setdefault(group_id, []).append(entry)
             except Exception:
                 logging.warning("读取群上下文目录失败", exc_info=True)
-            try:
-                rows = state_db.list_group_members()
-            except Exception:
-                rows = []
-            for row in rows:
-                group_id = str(row.get("group_id") or "")
-                user_id = str(row.get("user_id") or "")
-                if not group_id or not user_id:
-                    continue
-                key = group_member_key(group_id, user_id)
-                entry = self._context_meta(key)
-                if not entry["has_context"] and not int(row.get("message_count") or 0):
-                    continue
-                nickname = str(row.get("nickname") or "")
-                entry.update(
-                    {
-                        "group_id": group_id,
-                        "user_id": user_id,
-                        "nickname": nickname,
-                        "label": f"{user_id}" + (f" · {nickname}" if nickname else ""),
-                        "last_seen_ts": float(row.get("last_seen_ts") or 0),
-                        "message_count": int(row.get("message_count") or 0),
-                    }
-                )
-                groups.setdefault(group_id, []).append(entry)
 
-        # 会话存储里存在、但成员表没登记的键（旧数据或登记失败）
+        # 会话存储中的群共享线程；旧版成员线程不再作为独立会话展示。
         store = self._session_store()
         if store is not None:
             try:
@@ -505,23 +480,8 @@ class WebPanel:
             for key in keys:
                 parsed = parse_group_member_key(key)
                 if parsed:
-                    group_id, user_id = parsed
-                    if any(item["key"] == key for item in groups.get(group_id, [])):
-                        continue
-                    entry = self._context_meta(key)
-                    if not entry["has_context"]:
-                        continue
-                    entry.update(
-                        {
-                            "group_id": group_id,
-                            "user_id": user_id,
-                            "nickname": "",
-                            "label": user_id,
-                            "last_seen_ts": 0.0,
-                            "message_count": 0,
-                        }
-                    )
-                    groups.setdefault(group_id, []).append(entry)
+                    # 旧版按成员创建的线程只保留清理兼容，不再列为活动上下文。
+                    continue
                 elif str(key).startswith("g:"):
                     group_id = str(key)[2:]
                     if any(item["key"] == key for item in groups.get(group_id, [])):
@@ -1177,6 +1137,14 @@ class WebPanel:
                 for key, item in entries.items()
                 if str(item.get("group_id") or "") == group_id
             ]
+            store = self._session_store()
+            if store is not None:
+                # 清空本群时同时清掉旧版遗留的成员线程，避免隐藏历史残留。
+                keys = list(dict.fromkeys(keys + [
+                    key for key in store.list_keys()
+                    if key == group_key(group_id)
+                    or (parse_group_member_key(key) or (None, None))[0] == group_id
+                ]))
             if not keys:
                 raise HTTPException(status_code=404, detail="没有这个群的上下文")
             store = self._session_store()

@@ -1,9 +1,10 @@
-# QQ AI 助手
+# 奶娃 Bot · Naiwa Bot
 
-基于 [SnowLuma](https://github.com/SnowLuma/SnowLuma)（OneBot v11）的 QQ 私聊 AI 助手，可对接任意 OpenAI 兼容模型。
+这个仓库就是 **奶娃 QQ Bot**：群聊里的“奶娃 / 奶蛙 / 希腊奶蛙”，会接梗、会吐槽，也能认真帮忙。基于 [SnowLuma](https://github.com/SnowLuma/SnowLuma)（OneBot v11）连接 QQ，可使用任意 OpenAI 兼容模型。
 
-支持文字对话、图片理解、视频分析、文件收发与任务执行：消息交给模型处理后，模型可在受限的工作目录内读写文件、
-执行命令、联网检索，并把产出的文件直接发回 QQ。全部数据与密钥保存在本机。
+奶娃人设、网络梗与番剧知识库是本项目的核心组成部分。群里所有成员共享本群上下文，被 @ 时优先回答本轮提问者；可配置非 @ 随机插话。陌生梗、人物、作品与出处先查本地资料，库内缺失、证据待核实或需要最新信息时再联网。熟群友整活时可以自然发“？！你这也能过！？”之类的假震惊短句。
+
+支持文字、图片、视频、文件、提醒与待办，也保留在配置工作目录内执行任务的能力。模型密钥、QQ 登录信息、会话与私人记忆保存在本机；公开仓库提供可复用的人设和资料。
 
 ![交互示意](docs/demo.png)
 
@@ -41,9 +42,9 @@
 | 文件收发 | 读取 QQ 发来的文档（PDF 支持 OCR 兜底）；模型产出的文件以 `[FILE:]` 标记发回 |
 | 任务执行 | 自动区分闲聊与任务；任务先回执再执行，长任务分阶段汇报并等待「继续/停止」 |
 | 日程事务 | 提醒、待办、日历、后台任务队列，数据存于本地 SQLite |
-| 知识库 | 索引本地 `.md` / `.txt` / `.pdf`，支持命令检索与模型主动检索 |
+| 知识库 | 梗与番剧详解；自动预取相关本地资料，模型可继续检索，证据不足再联网 |
 | 主动消息 | 定时、空闲或日程前主动发起对话；默认关闭，可配置时段、频率与冷却 |
-| 人格设定 | 默认通用中文助手；可通过配置项或技能目录定义人设、语气与媒体使用频率 |
+| 奶娃人格 | 示例配置加载奶娃人设；包含接梗、现场改写、短句吐槽、假震惊与认真回应的分寸 |
 | 外部程序互通 | 基于文件的双向通道，其他程序可借该 QQ 号发送消息，QQ 消息也可转交处理 |
 | Web 工作台 | 浏览器内聊天、跟随日志、管理提醒/待办/任务（可选） |
 | 第三方插件 | 兼容 AstrBot 生态中仅依赖 `astrbot.api` 的简单插件（可选） |
@@ -71,8 +72,8 @@
 ### 安装
 
 ```bash
-git clone https://github.com/HPIline/qq-agent-bridge.git
-cd qq-agent-bridge
+git clone https://github.com/cyx-weimijiheheda/naiwa-bot.git
+cd naiwa-bot
 ./start.sh          # macOS / Linux：首次运行自动创建 .venv 并安装依赖
 start.bat           # Windows
 ```
@@ -276,29 +277,46 @@ start.bat           # Windows
 
 ## 自定义人格
 
-默认配置为通用中文助手。两种自定义方式：
+本仓库以奶娃人格为主，`config.example.json` 已指定 `prompts/naiwa-chat.md`。配置加载器仍支持自定义人格；如果跳过示例配置且不填任何人格字段，底层会回退到普通助手。
 
 **配置项**（适合简短设定）：
 
 ```json
 {
-  "persona_name": "小助手",
-  "persona_prompt": "说话简短，先给结论；不确定时明确说明，不编造内容。",
+  "persona_name": "奶娃",
+  "persona_prompt": "群聊短接，先回应当前成员的具体话语；陌生梗先查本地知识库，不编造出处。",
   "persona_ack_lines": ["收到，我看下。", "稍等，马上处理。"],
   "emoticon_examples": ["(・_・)", "(￣▽￣)"]
 }
 ```
 
-仓库附带一份可直接启用的奶蛙/“奶娃”群聊迷因运行卡：[prompts/naiwa-chat.md](prompts/naiwa-chat.md)。它补充了经典梗和贴吧用语，并按熟悉程度控制互怼火力；贴吧词例参考[百度贴吧的“典中典”话题](https://tieba.baidu.com/hottopic/browse/hottopic?topic_id=5018099)和[贴吧用语整理](https://chouxiangbaike.com/platform/tieba)。
+主要运行卡是奶蛙/“奶娃”群聊人设：[prompts/naiwa-chat.md](prompts/naiwa-chat.md)。它补充了经典梗和贴吧用语，并按熟悉程度控制互怼火力；贴吧词例参考[百度贴吧的“典中典”话题](https://tieba.baidu.com/hottopic/browse/hottopic?topic_id=5018099)和[贴吧用语整理](https://chouxiangbaike.com/platform/tieba)。
 
 ```json
 {
-  "persona_name": "奶蛙",
-  "persona_prompt_file": "prompts/naiwa-chat.md"
+  "persona_name": "奶娃",
+  "persona_prompt": "",
+  "persona_prompt_file": "prompts/naiwa-chat.md",
+  "knowledge_tool_enabled": true,
+  "rag_dirs": ["knowledge"]
 }
 ```
 
 “奶娃”在网络语境里常被当作“奶蛙/奶龙”二创的谐称；这张卡按抽象、反差、被嫌弃式小剧场和群体接梗来处理，不会强行对每条消息刷笑声。
+
+`persona_prompt` 非空时会覆盖 `persona_prompt_file`。希望跟随仓库人设更新时，把 `persona_prompt` 设为空；已有自定义内联设定则需手动同步。文件改动后重启机器人加载。
+
+### 奶娃知识库
+
+- [简版人设](prompts/naiwa-chat.md)与[完整版人设](prompts/naiwa-chat.full.md)：接梗、群聊语气和回复分寸。
+- [网络梗年代图鉴](knowledge/网络梗年代图鉴.md)：约 2011—2026 年中外网络梗索引。
+- [番剧二十年索引](knowledge/番剧二十年图鉴与梗索引.md)与[逐部详解](knowledge/番剧详解)：约 2006—2026 年作品背景、可获取的剧情/人物资料和相关梗。
+- [逐梗详解](knowledge/梗详解)与[考据及接话范例](knowledge/梗考据补充与接话范例.md)：含义、来源证据、延伸和语境。
+- [抽象标点与奶娃语气](knowledge/抽象标点与奶娃语气.md)：如何自然使用“？！短句！？”；未查到唯一首创者，不能编造来源。
+- [覆盖与待核实清单](knowledge/收录覆盖与待核实.md)：当前 182 份作品/相关资料、338 份梗条目，其中 214 个梗仍缺少足够出处证据。收录不代表已证实全网首发，也不代表覆盖全部动画。
+
+首次配置后，在私聊发送 `/知识库 重建`，或在 Web 面板点击“重建知识库”。后续改资料也需重建；索引数据库在本机生成。普通闲聊保持短接，只有明确要求详解/考据时才展开。
+
 
 <details>
 <summary>技能目录（适合长设定与附带资源）</summary>
@@ -437,14 +455,14 @@ pip install -r requirements-web.txt
 <summary>Linux（systemd）</summary>
 
 ```ini
-# /etc/systemd/system/qq-agent-bridge.service
+# /etc/systemd/system/naiwa-bot.service
 [Unit]
 Description=QQ AI 助手
 After=network-online.target
 
 [Service]
-WorkingDirectory=/opt/qq-agent-bridge
-ExecStart=/opt/qq-agent-bridge/.venv/bin/python bridge.py
+WorkingDirectory=/opt/naiwa-bot
+ExecStart=/opt/naiwa-bot/.venv/bin/python bridge.py
 Restart=always
 User=youruser
 
@@ -453,7 +471,7 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable --now qq-agent-bridge
+sudo systemctl enable --now naiwa-bot
 ```
 
 </details>
@@ -470,14 +488,14 @@ sudo systemctl enable --now qq-agent-bridge
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.example.qq-agent-bridge</string>
+  <string>com.example.naiwa-bot</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/opt/qq-agent-bridge/.venv/bin/python</string>
-    <string>/opt/qq-agent-bridge/bridge.py</string>
+    <string>/opt/naiwa-bot/.venv/bin/python</string>
+    <string>/opt/naiwa-bot/bridge.py</string>
   </array>
   <key>WorkingDirectory</key>
-  <string>/opt/qq-agent-bridge</string>
+  <string>/opt/naiwa-bot</string>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
@@ -502,7 +520,7 @@ sudo systemctl enable --now qq-agent-bridge
 配置对应的重启命令即可：
 
 ```json
-{ "restart_command": "systemctl restart qq-agent-bridge" }
+{ "restart_command": "systemctl restart naiwa-bot" }
 ```
 
 未配置时，macOS 会尝试 launchd 服务，其它平台记录日志并跳过。
@@ -575,21 +593,24 @@ ruff check .
 
 ## English
 
-An AI assistant for QQ private chats, built on [SnowLuma](https://github.com/SnowLuma/SnowLuma) (OneBot v11)
-and any OpenAI-compatible model endpoint.
+**Naiwa Bot** is a Chinese QQ character bot focused on meme-aware group chat, playful replies,
+and a local anime/meme knowledge base. Built on [SnowLuma](https://github.com/SnowLuma/SnowLuma)
+(OneBot v11), it supports OpenAI-compatible model endpoints. The example configuration loads
+the Naiwa persona and the bundled knowledge directory. Stable facts are retrieved locally first;
+missing evidence and time-sensitive information can be checked online.
 
 - Understands text, images, videos and documents; can run tasks inside a sandboxed working directory
   and send generated files back to the chat.
-- Optional group support (off by default): replies only when @-mentioned, one shared session per group,
+- Group support is off by default; once enabled, it replies to mentions and can optionally join unmentioned conversations. One shared session per group,
   and shell/file tools stay restricted to whitelisted members.
 - Includes reminders, todos, a task queue, a local knowledge base and optional proactive messages.
 - Runs on Windows / macOS / Linux (`start.bat` / `start.sh`).
 - Configure via `config.json` or `QQBOT_<KEY>` environment variables; all ~180 options are documented
   in [`CONFIG.md`](CONFIG.md).
-- Persona is configurable (`persona_name` / `persona_prompt`), or loadable from a skill directory.
+- Bundled Naiwa persona (`prompts/naiwa-chat.md`), with configurable style and a detailed local knowledge base.
 
 ```bash
-git clone https://github.com/HPIline/qq-agent-bridge.git && cd qq-agent-bridge
+git clone https://github.com/cyx-weimijiheheda/naiwa-bot.git && cd naiwa-bot
 cp config.example.json config.json   # fill in full_access_qq, api_key and model
 ./start.sh                           # start.bat on Windows
 ```
@@ -598,4 +619,6 @@ Documentation is written in Chinese. Issues and pull requests are welcome.
 
 ## License
 
-[MIT](LICENSE)
+Code: [MIT](LICENSE). This repository builds on [HPIline/qq-agent-bridge](https://github.com/HPIline/qq-agent-bridge); original copyright notices are retained.
+
+The Wikipedia excerpts/adaptations in the knowledge base retain their per-file attribution and [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) terms; they are not relicensed as MIT. See [knowledge source notes](knowledge/资料编写与来源说明.md).

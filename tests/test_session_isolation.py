@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from targets import group_key, group_member_key, private_key
+from targets import group_key, private_key
 
 
 def test_private_and_group_keys_do_not_collide():
@@ -13,13 +13,6 @@ def test_private_and_group_keys_do_not_collide():
     assert private_key("10001") != group_key("10001")
     assert private_key("10001") == "10001"
     assert group_key("10001") == "g:10001"
-
-
-def test_group_member_key_is_distinct_per_member():
-    a = group_member_key("429949232", "10001")
-    b = group_member_key("429949232", "10002")
-    assert a != b
-    assert a == "g:429949232:10001"
 
 
 def test_session_store_keeps_threads_apart(tmp_path):

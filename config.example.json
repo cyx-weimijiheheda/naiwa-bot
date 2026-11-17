@@ -5,5 +5,12 @@
   ],
   "api_base_url": "https://api.openai.com/v1",
   "api_key": "",
-  "model": "gpt-4o-mini"
+  "model": "gpt-4o-mini",
+  "persona_name": "奶娃",
+  "persona_prompt": "",
+  "persona_prompt_file": "prompts/naiwa-chat.md",
+  "knowledge_tool_enabled": true,
+  "rag_dirs": [
+    "knowledge"
+  ]
 }

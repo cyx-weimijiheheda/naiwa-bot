@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from rag import RagIndex, scan_docs, search_knowledge
+from rag import RagIndex, _chunk_text, scan_docs, search_knowledge
 from state_db import StateDB
 
 
@@ -46,6 +46,45 @@ def test_search_knowledge_empty(tmp_path):
     db = StateDB(tmp_path / "state.db")
     text = search_knowledge(db, "不存在的内容")
     assert "没有找到" in text
+
+
+def test_detailed_knowledge_returns_evidence_beyond_preview(tmp_path):
+    db = StateDB(tmp_path / "state.db")
+    content = "来源线索：真香。\n\n" + "背景材料。" * 45 + "\n\n传播经过：先拒绝后接受，衍生为态度反转模板。"
+    db.add_document("meme.md", 0, "真香详解", content)
+    reply = search_knowledge(db, "真香", limit=1)
+    assert "传播经过：先拒绝后接受" in reply
+    assert db.document_content("not-indexed.md#0") == ""
+    db.close()
+
+
+def test_chunking_keeps_origin_paragraph_whole():
+    origin = "出处与传播：" + "不可拆断的因果说明。" * 8
+    text = "前言。" * 25 + "\n\n" + origin
+    chunks = _chunk_text(text, size=120, overlap=10)
+    assert any(origin in chunk for chunk in chunks)
+    assert all(len(chunk) <= 120 for chunk in chunks)
+
+
+def test_long_paragraph_chunking_keeps_tail():
+    text = "剧情说明" * 100 + "独有结尾"
+    chunks = _chunk_text(text, size=100, overlap=10)
+    assert chunks[-1].endswith("独有结尾")
+    assert all(len(chunk) <= 100 for chunk in chunks)
+
+
+def test_local_prefetch_provides_matching_work_but_skips_chitchat(tmp_path):
+    from types import SimpleNamespace
+    from handlers import _local_knowledge_context
+
+    db = StateDB(tmp_path / "state.db")
+    db.add_document("anime.md", 0, "孤独摇滚！.md", "后藤一里加入结束乐队。")
+    bridge = SimpleNamespace(cfg={}, state_db=db)
+    assert "后藤一里" in _local_knowledge_context(bridge, "孤独摇滚！讲了什么")
+    assert _local_knowledge_context(bridge, "我先下班啦") == ""
+    bridge.cfg["knowledge_tool_enabled"] = False
+    assert _local_knowledge_context(bridge, "孤独摇滚！讲了什么") == ""
+    db.close()
 
 
 def test_agent_client_builds_knowledge_tool(tmp_path):
